@@ -1,7 +1,7 @@
 {
-  version = "0.7.7";
+  version = "0.7.8";
 
-  x86_64-linux = "b3cc4a5e3f52dfdd938a6f67ac4a9a959ddfe304bab56de4964044b8613f01bb";
-  aarch64-linux = "8997b1ea76de58689fb6d0fa7b32af6fbe8cbc24612da40b168a5b433c7d8318";
-  aarch64-darwin = "eed5faa16217ad375ad9a4eb5e819656baeab8ccde0d3ab7e79c4af49319d403";
+  x86_64-linux = "86f9f72dc3e639c7175bc07909b4b63ce412517c1ef8a2e1921171af5682fded";
+  aarch64-linux = "6a9905fe80a7e4e3ff554896ef733a3cc6ed653924135631c28dece65a011cfd";
+  aarch64-darwin = "5dbe0d921c6b6f807d2c59f87e0a3c3a648424871b6bee513b837a8c600a2493";
 }
