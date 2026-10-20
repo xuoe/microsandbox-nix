@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# Refresh sources.nix from the microsandbox release checksums.
+#
+# Usage:
+#   scripts/update-sources            # latest GitHub release
+#   scripts/update-sources 0.7.9      # a specific version
+#
+# Only the checksums.sha256 file is fetched and checked.
+#
+# Requires: curl, jq.
+set -euo pipefail
+
+repo=superradcompany/microsandbox
+cd "$(dirname "$0")/.."
+
+die() {
+    echo "error: $*" >&2
+    exit 1
+}
+
+case $# in
+    0)
+        version=$(curl -fsSL "https://api.github.com/repos/${repo}/releases/latest" | jq -r .tag_name)
+        version=${version#v}
+        ;;
+    1)
+        version=${1#v}
+        ;;
+    *)
+        die "usage: $0 [VERSION]"
+        ;;
+esac
+
+[[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]] \
+    || die "invalid release version: $version"
+
+base="https://github.com/${repo}/releases/download/v${version}"
+
+echo "==> release v${version}" >&2
+echo "==> fetching checksums.sha256" >&2
+checksums=$(curl -fsSL --retry 3 "${base}/checksums.sha256")
+
+checksum_of() {
+    local asset=$1 hash name
+
+    while read -r hash name; do
+        name=${name#\*}
+        if [[ $name == "$asset" ]]; then
+            printf '%s' "$hash"
+            return 0
+        fi
+    done <<<"$checksums"
+
+    return 1
+}
+
+emit() {
+    local system=$1 asset=$2 hash
+
+    hash=$(checksum_of "$asset") || die "missing checksum for ${asset}"
+    [[ $hash =~ ^[0-9a-f]{64}$ ]] || die "invalid sha256 for ${asset}: ${hash}"
+    printf '  %s = "%s";\n' "$system" "$hash"
+}
+
+entries=$(
+    emit x86_64-linux microsandbox-linux-x86_64.tar.gz
+    emit aarch64-linux microsandbox-linux-aarch64.tar.gz
+    emit aarch64-darwin microsandbox-darwin-aarch64.tar.gz
+)
+
+{
+    printf '{\n'
+    printf '  version = "%s";\n\n' "$version"
+    printf '%s\n' "$entries"
+    printf '}\n'
+} > sources.nix
+
+VERSION=$version perl -pi -e 's/^msb \d+\.\d+\.\d+$/msb $ENV{VERSION}/' README.md
+
+echo "==> wrote sources.nix for v${version}" >&2

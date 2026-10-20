@@ -1,0 +1,127 @@
+name: Update microsandbox release pins
+
+on:
+  schedule:
+    # Every 6 hours
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: update-microsandbox
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      current: ${{ steps.versions.outputs.current }}
+      latest: ${{ steps.versions.outputs.latest }}
+      update: ${{ steps.versions.outputs.update }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compare current and latest versions
+        id: versions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          current=$(sed -n 's/^[[:space:]]*version = "\(.*\)";$/\1/p' sources.nix)
+          latest=$(gh api repos/superradcompany/microsandbox/releases/latest --jq .tag_name)
+          latest=${latest#v}
+
+          if [ -z "$current" ] || [ -z "$latest" ]; then
+            echo "could not determine current/latest version" >&2
+            exit 1
+          fi
+
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+
+          if [ "$current" = "$latest" ]; then
+            echo "update=false" >> "$GITHUB_OUTPUT"
+            echo "already at $current"
+          else
+            echo "update=true" >> "$GITHUB_OUTPUT"
+            echo "updating $current -> $latest"
+          fi
+
+  update:
+    needs: check
+    if: needs.check.outputs.update == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update sources.nix
+        run: scripts/update-sources "${{ needs.check.outputs.latest }}"
+
+      - name: Upload sources.nix
+        uses: actions/upload-artifact@v4
+        with:
+          name: sources
+          path: sources.nix
+
+  build:
+    needs: [check, update]
+    if: needs.check.outputs.update == 'true'
+    strategy:
+      fail-fast: true
+      matrix:
+        runner: [ubuntu-latest, macos-14]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download sources.nix
+        uses: actions/download-artifact@v4
+        with:
+          name: sources
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+
+      - name: Build and test
+        run: |
+          nix build .#msb -L
+          ./result/bin/msb --version
+
+  commit:
+    needs: [check, update, build]
+    if: needs.check.outputs.update == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Download sources.nix
+        uses: actions/download-artifact@v4
+        with:
+          name: sources
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add sources.nix README.md
+          if git diff --cached --quiet; then
+            echo "sources.nix did not change"
+            exit 0
+          fi
+
+          git commit -m "update: bump microsandbox to ${{ needs.check.outputs.latest }}"
+          git push
