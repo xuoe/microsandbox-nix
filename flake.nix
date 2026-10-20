@@ -69,6 +69,9 @@
     rec {
       forAllSystems = lib.genAttrs systems;
       packages = forAllSystems mkPackage;
+      overlays.default = final: _prev: {
+        microsandbox = self.packages.${final.stdenv.hostPlatform.system}.msb;
+      };
       formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt-tree);
       checks = forAllSystems (system: {
         inherit (self.packages.${system}) msb;

@@ -54,7 +54,7 @@ Add the flake to your inputs:
 inputs.microsandbox.url = "github:xuoe/microsandbox-nix";
 ```
 
-Pass the package to Home Manager with `extraSpecialArgs`:
+Either use the overlay, or pass the package with `extraSpecialArgs`:
 
 ```nix
 {
@@ -63,10 +63,16 @@ Pass the package to Home Manager with `extraSpecialArgs`:
       system = "x86_64-linux"; # your system
     in {
     homeConfigurations.<USER> = home-manager.lib.homeManagerConfiguration {
-      pkgs = nixpkgs.legacyPackages.${system};
-      extraSpecialArgs = {
-        msb = microsandbox.packages.${system}.msb;
+      # Overlay:
+      pkgs = import nixpkgs {
+        inherit system;
+        overlays = [ microsandbox.overlays.default ];
       };
+
+      # extraSpecialArgs:
+      # extraSpecialArgs = {
+      #   microsandbox = microsandbox.packages.${system}.msb;
+      # };
       modules = [ ./home.nix ];
     };
   };
@@ -76,9 +82,18 @@ Pass the package to Home Manager with `extraSpecialArgs`:
 Then add it in `home.nix`:
 
 ```nix
-{ msb, ... }:
+# Overlay:
+{ pkgs, ... }:
 {
-  home.packages = [ msb ];
+  home.packages = [ pkgs.microsandbox ];
+}
+```
+
+```nix
+# extraSpecialArgs:
+{ microsandbox, ... }:
+{
+  home.packages = [ microsandbox ];
 }
 ```
 
@@ -90,7 +105,7 @@ Add the flake to your inputs:
 inputs.microsandbox.url = "github:xuoe/microsandbox-nix";
 ```
 
-Pass the package to NixOS with `specialArgs`:
+Either use the overlay, or pass the package with `specialArgs`:
 
 ```nix
 {
@@ -100,10 +115,17 @@ Pass the package to NixOS with `specialArgs`:
     in {
     nixosConfigurations.<HOST> = nixpkgs.lib.nixosSystem {
       inherit system;
-      specialArgs = {
-        msb = microsandbox.packages.${system}.msb;
-      };
-      modules = [ ./configuration.nix ];
+      # Overlay:
+      modules = [
+        { nixpkgs.overlays = [ microsandbox.overlays.default ]; }
+        ./configuration.nix
+      ];
+
+      # specialArgs:
+      # specialArgs = {
+      #   microsandbox = microsandbox.packages.${system}.msb;
+      # };
+      # modules = [ ./configuration.nix ];
     };
   };
 }
@@ -112,9 +134,18 @@ Pass the package to NixOS with `specialArgs`:
 Then add it in `configuration.nix`:
 
 ```nix
-{ msb, ... }:
+# Overlay:
+{ pkgs, ... }:
 {
-  environment.systemPackages = [ msb ];
+  environment.systemPackages = [ pkgs.microsandbox ];
+}
+```
+
+```nix
+# specialArgs:
+{ microsandbox, ... }:
+{
+  environment.systemPackages = [ microsandbox ];
 }
 ```
 
