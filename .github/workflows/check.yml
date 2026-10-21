@@ -10,8 +10,9 @@ on:
   workflow_dispatch:
   workflow_call:
     inputs:
-      release-data:
-        type: string
+      apply-release-data:
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -27,16 +28,16 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Download release data
-        if: inputs.release-data
-        uses: actions/download-artifact@v4
+        if: inputs.apply-release-data
+        uses: actions/download-artifact@v8
         with:
-          name: ${{ inputs.release-data }}
+          name: release-data
 
       - name: Apply release data
-        if: inputs.release-data
+        if: inputs.apply-release-data
         run: git apply release-data.patch
 
       - name: Install Nix
