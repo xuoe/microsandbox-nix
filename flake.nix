@@ -31,17 +31,20 @@
         in
         {
           inherit (self.packages.${system}) msb;
-          formatting =
-            pkgs.runCommand "formatting-check"
-              {
-                nativeBuildInputs = [ pkgs.nixfmt-tree ];
-              }
-              ''
-                cp -r --no-preserve=mode ${self} src
-                cd src
-                treefmt --fail-on-change --no-cache --tree-root . --walk filesystem
-                touch $out
-              '';
+          formatting = pkgs.runCommand "formatting-check" { nativeBuildInputs = [ pkgs.nixfmt ]; } ''
+            nixfmt --check ${self}/*.nix
+            touch $out
+          '';
+
+          shellcheck = pkgs.runCommand "shellcheck-check" { nativeBuildInputs = [ pkgs.shellcheck ]; } ''
+            shellcheck ${self}/.github/scripts/*
+            touch $out
+          '';
+
+          actionlint = pkgs.runCommand "actionlint-check" { nativeBuildInputs = [ pkgs.actionlint ]; } ''
+            actionlint ${self}/.github/workflows/*.yml
+            touch $out
+          '';
         }
       );
     };
