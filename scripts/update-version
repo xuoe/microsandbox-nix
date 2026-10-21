@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+# Refresh version and checksums.json from the microsandbox release checksums.
+#
+# Usage:
+#   scripts/update-version            # latest GitHub release
+#   scripts/update-version 0.7.9      # a specific version
+#
+# Requires: curl, jq, perl.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+die() {
+    echo "error: $*" >&2
+    exit 1
+}
+
+info() {
+    printf '==> %s\n' "$*" >&2
+}
+
+repo=superradcompany/microsandbox
+
+case $# in
+    0)
+        version=$(curl -fsSL "https://api.github.com/repos/${repo}/releases/latest" | jq -r .tag_name)
+        version=${version#v}
+        ;;
+    1)
+        version=${1#v}
+        ;;
+    *)
+        die "usage: $0 [VERSION]"
+        ;;
+esac
+
+[[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]] \
+    || die "invalid release version: $version"
+
+base="https://github.com/${repo}/releases/download/v${version}"
+
+info "release v${version}"
+info "fetching checksums.sha256"
+checksums=$(curl -fsSL --retry 3 "${base}/checksums.sha256")
+
+checksum_of() {
+    local asset=$1 hash name
+
+    while read -r hash name; do
+        name=${name#\*}
+        if [[ $name == "$asset" ]]; then
+            printf '%s' "$hash"
+            return 0
+        fi
+    done <<< "$checksums"
+
+    return 1
+}
+
+emit() {
+    local system=$1 asset=$2 hash
+
+    hash=$(checksum_of "$asset") || die "missing checksum for ${asset}"
+    [[ $hash =~ ^[0-9a-f]{64}$ ]] || die "invalid sha256 for ${asset}: ${hash}"
+    printf '%s %s\n' "$system" "$hash"
+}
+
+write_version() {
+    printf '%s\n' "$version" > version
+    info "wrote version file"
+}
+
+write_checksums() {
+    local entries
+    entries=$(
+        emit x86_64-linux microsandbox-linux-x86_64.tar.gz
+        emit aarch64-linux microsandbox-linux-aarch64.tar.gz
+        emit aarch64-darwin microsandbox-darwin-aarch64.tar.gz
+    )
+    printf '%s\n' "$entries" | jq -Rn -S '
+      reduce (inputs | split(" ")) as $p
+        ({}; .[$p[0]] = $p[1])
+    ' > checksums.json
+    info "wrote checksums.json"
+}
+
+update_readme() {
+    # perl rather than sed: GNU and BSD sed differ on -i and do not support \d.
+    perl -pi -e "s/^msb \d+\.\d+\.\d+\S*/msb ${version}/" README.md
+    info "updated README.md version"
+}
+
+write_checksums
+update_readme
+write_version

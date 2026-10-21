@@ -1,7 +1,0 @@
-{
-  version = "0.7.8";
-
-  x86_64-linux = "86f9f72dc3e639c7175bc07909b4b63ce412517c1ef8a2e1921171af5682fded";
-  aarch64-linux = "6a9905fe80a7e4e3ff554896ef733a3cc6ed653924135631c28dece65a011cfd";
-  aarch64-darwin = "5dbe0d921c6b6f807d2c59f87e0a3c3a648424871b6bee513b837a8c600a2493";
-}

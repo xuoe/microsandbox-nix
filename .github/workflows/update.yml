@@ -1,4 +1,4 @@
-name: Update microsandbox release pins
+name: Update microsandbox
 
 on:
   schedule:
@@ -30,7 +30,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          current=$(sed -n 's/^[[:space:]]*version = "\(.*\)";$/\1/p' sources.nix)
+          current=$(<version)
           latest=$(gh api repos/superradcompany/microsandbox/releases/latest --jq .tag_name)
           latest=${latest#v}
 
@@ -58,44 +58,29 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - name: Update version and checksums.json
+        run: scripts/update-version "${{ needs.check.outputs.latest }}"
 
-      - name: Update sources.nix
-        run: scripts/update-sources "${{ needs.check.outputs.latest }}"
+      - name: Create release data patch
+        run: |
+          git diff --no-color --no-ext-diff > release-data.patch
+          test -s release-data.patch
 
-      - name: Upload sources.nix
+      - name: Upload release data
         uses: actions/upload-artifact@v4
         with:
-          name: sources
-          path: sources.nix
+          name: release-data
+          path: release-data.patch
 
-  build:
+  validate:
     needs: [check, update]
     if: needs.check.outputs.update == 'true'
-    strategy:
-      fail-fast: true
-      matrix:
-        runner: [ubuntu-latest, macos-14]
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 30
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download sources.nix
-        uses: actions/download-artifact@v4
-        with:
-          name: sources
-
-      - name: Install Nix
-        uses: cachix/install-nix-action@v31
-
-      - name: Build and test
-        run: |
-          nix build .#msb -L
-          ./result/bin/msb --version
+    uses: ./.github/workflows/check.yml
+    with:
+      release-data: release-data
 
   commit:
-    needs: [check, update, build]
+    needs: [check, update, validate]
     if: needs.check.outputs.update == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -107,16 +92,19 @@ jobs:
         with:
           persist-credentials: true
 
-      - name: Download sources.nix
+      - name: Download release data
         uses: actions/download-artifact@v4
         with:
-          name: sources
+          name: release-data
+
+      - name: Apply release data
+        run: git apply release-data.patch
 
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add sources.nix README.md
+          git add version checksums.json README.md
           git commit -m "update: bump microsandbox to ${{ needs.check.outputs.latest }}"
           git push

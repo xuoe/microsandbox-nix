@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+#
+# Exercise the flake entry points.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+nix flake check -L
+nix build .#msb -L
+./result/bin/msb --version

@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# 
+# Verify that the flake, classic, and overlay derivations are identical.
+#
+# Usage:
+#   scripts/check-parity           # current system
+#   scripts/check-parity <system>  # explicit system
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+system=${1:-$(nix eval --raw --impure --expr builtins.currentSystem)}
+
+eval_flake() {
+    nix eval --raw "$1"
+}
+
+eval_expr() {
+    nix eval --raw --impure --expr "
+      let
+        f = builtins.getFlake (toString ./.);
+        pkgs = f.inputs.nixpkgs.legacyPackages.\"${system}\";
+      in
+      $1
+    "
+}
+
+flake=$(eval_flake ".#packages.${system}.msb.drvPath")
+classic=$(eval_expr '(import ./default.nix { inherit pkgs; }).drvPath')
+overlay=$(eval_expr '(pkgs.extend (import ./overlay.nix)).microsandbox.drvPath')
+
+printf 'flake:   %s\n' "$flake"
+printf 'classic: %s\n' "$classic"
+printf 'overlay: %s\n' "$overlay"
+
+test "$flake" = "$classic"
+test "$flake" = "$overlay"

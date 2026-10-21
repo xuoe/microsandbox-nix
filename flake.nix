@@ -6,75 +6,43 @@
     { self, nixpkgs }:
     let
       inherit (nixpkgs) lib;
-      sources = import ./sources.nix;
-      systems = builtins.attrNames (builtins.removeAttrs sources [ "version" ]);
-
-      mkPackage =
+      checksums = builtins.fromJSON (builtins.readFile ./checksums.json);
+      systems = builtins.attrNames checksums;
+      overlay = import ./overlay.nix;
+      forAllSystems = lib.genAttrs systems;
+    in
+    {
+      packages = forAllSystems (
+        system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system}.extend overlay;
+        in
+        {
+          msb = pkgs.microsandbox;
+          default = pkgs.microsandbox;
+        }
+      );
+      overlays.default = overlay;
+      formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt-tree);
+      checks = forAllSystems (
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
-          arch = lib.head (lib.splitString "-" system);
-          os = lib.last (lib.splitString "-" system);
-
-          msb = pkgs.stdenv.mkDerivation {
-            pname = "msb";
-            version = sources.version;
-
-            src = pkgs.fetchurl {
-              url = "https://github.com/superradcompany/microsandbox/releases/download/v${sources.version}/microsandbox-${os}-${arch}.tar.gz";
-              sha256 = sources.${system};
-            };
-
-            # The bundle has no top-level directory.
-            sourceRoot = ".";
-
-            # The vendor binaries are already stripped.
-            dontStrip = true;
-
-            nativeBuildInputs = lib.optionals pkgs.stdenv.hostPlatform.isLinux [
-              pkgs.autoPatchelfHook
-            ];
-
-            # libstdc++ and libgcc_s are needed on Linux.
-            buildInputs = lib.optionals pkgs.stdenv.hostPlatform.isLinux [
-              pkgs.stdenv.cc.cc.lib
-            ];
-
-            installPhase = ''
-              runHook preInstall
-              install -Dm755 msb $out/bin/msb
-              install -Dm755 -t $out/lib libkrunfw.*
-              runHook postInstall
-            '';
-
-            meta = {
-              description = "Easy, fast, programmable and local-first microVM runtime";
-              homepage = "https://microsandbox.dev";
-              license = with lib.licenses; [
-                asl20 # msb
-                gpl2Only # linux kernel + patches
-                lgpl21Only # libkrunfw
-              ];
-              mainProgram = "msb";
-              platforms = [ pkgs.stdenv.hostPlatform.system ];
-              sourceProvenance = with lib.sourceTypes; [ binaryNativeCode ];
-            };
-          };
         in
         {
-          inherit msb;
-          default = msb;
-        };
-    in
-    rec {
-      forAllSystems = lib.genAttrs systems;
-      packages = forAllSystems mkPackage;
-      overlays.default = final: _prev: {
-        microsandbox = self.packages.${final.stdenv.hostPlatform.system}.msb;
-      };
-      formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt-tree);
-      checks = forAllSystems (system: {
-        inherit (self.packages.${system}) msb;
-      });
+          inherit (self.packages.${system}) msb;
+          formatting =
+            pkgs.runCommand "formatting-check"
+              {
+                nativeBuildInputs = [ pkgs.nixfmt-tree ];
+              }
+              ''
+                cp -r --no-preserve=mode ${self} src
+                cd src
+                treefmt --fail-on-change --no-cache --tree-root . --walk filesystem
+                touch $out
+              '';
+        }
+      );
     };
 }

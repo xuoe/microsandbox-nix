@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# 
+# Exercise the non-flake entry points with the current <nixpkgs> channel.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+out=$(nix-build --no-out-link)
+"$out/bin/msb" --version
+
+profile=$tmp/profile
+nix-env -f . -i --profile "$profile"
+"$profile/bin/msb" --version
+
+nix-shell --run 'msb --version && treefmt --version'
+
+nix-instantiate --eval --raw -E \
+  'let pkgs = import <nixpkgs> { overlays = [ (import ./overlay.nix) ]; }; in pkgs.microsandbox.drvPath'
