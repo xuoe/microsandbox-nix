@@ -3,7 +3,7 @@
 # Exercise the non-flake entry points with the current <nixpkgs> channel.
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT

@@ -59,7 +59,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Update version and checksums.json
-        run: scripts/update-version "${{ needs.check.outputs.latest }}"
+        run: .github/scripts/update-version "${{ needs.check.outputs.latest }}"
 
       - name: Create release data patch
         run: |

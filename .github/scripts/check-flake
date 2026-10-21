@@ -3,7 +3,7 @@
 # Exercise the flake entry points.
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 
 nix flake check -L
 nix build .#msb -L

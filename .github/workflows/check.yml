@@ -47,11 +47,11 @@ jobs:
 
       - name: Check flake entry points
         if: matrix.mode == 'flake'
-        run: scripts/check-flake
+        run: .github/scripts/check-flake
 
       - name: Check flake and classic derivations match
         if: matrix.mode == 'flake'
-        run: scripts/check-parity
+        run: .github/scripts/check-parity
 
       - name: Confirm flakes are disabled
         if: matrix.mode == 'classic'
@@ -59,4 +59,4 @@ jobs:
 
       - name: Check classic entry points
         if: matrix.mode == 'classic'
-        run: scripts/check-classic
+        run: .github/scripts/check-classic

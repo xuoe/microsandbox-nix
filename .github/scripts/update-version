@@ -2,13 +2,13 @@
 # Refresh version and checksums.json from the microsandbox release checksums.
 #
 # Usage:
-#   scripts/update-version            # latest GitHub release
-#   scripts/update-version 0.7.9      # a specific version
+#   .github/scripts/update-version            # latest GitHub release
+#   .github/scripts/update-version 0.7.9      # a specific version
 #
 # Requires: curl, jq, perl.
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 
 die() {
     echo "error: $*" >&2

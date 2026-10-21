@@ -3,11 +3,11 @@
 # Verify that the flake, classic, and overlay derivations are identical.
 #
 # Usage:
-#   scripts/check-parity           # current system
-#   scripts/check-parity <system>  # explicit system
+#   .github/scripts/check-parity           # current system
+#   .github/scripts/check-parity <system>  # explicit system
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 
 system=${1:-$(nix eval --raw --impure --expr builtins.currentSystem)}
 
