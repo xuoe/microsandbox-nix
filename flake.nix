@@ -18,7 +18,7 @@
           pkgs = nixpkgs.legacyPackages.${system}.extend overlay;
         in
         {
-          msb = pkgs.microsandbox;
+          microsandbox = pkgs.microsandbox;
           default = pkgs.microsandbox;
         }
       );

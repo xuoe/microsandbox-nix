@@ -15,7 +15,7 @@ let
 in
 assert supportedSystem || throw "microsandbox ${version} has no release asset for ${system}";
 stdenv.mkDerivation {
-  pname = "msb";
+  pname = "microsandbox";
   inherit version;
 
   src = fetchurl {
