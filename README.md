@@ -1,9 +1,9 @@
 # microsandbox-nix
 
 Nix packaging for [microsandbox](https://microsandbox.dev)
-([superradcompany/microsandbox](https://github.com/superradcompany/microsandbox)).
+([repo](https://github.com/superradcompany/microsandbox)).
 It installs the prebuilt `msb` CLI and its matching `libkrunfw` from the official
-release, so nothing is compiled from source.
+release.
 
 ## Requirements
 
@@ -20,7 +20,7 @@ On NixOS, add your user to the `kvm` group:
 users.users.YOUR_USER.extraGroups = [ "kvm" ];
 ```
 
-## Quick Usage
+## Try
 
 ```bash
 # Run msb once (flakes).
@@ -38,117 +38,41 @@ $ ./result/bin/msb --version
 msb 0.7.8
 ```
 
-## Installation
+## Install
 
-### NixOS flake (overlay)
-
-```nix
-# flake.nix
-{
-  inputs.microsandbox.url = "github:xuoe/microsandbox-nix";
-
-  outputs = { nixpkgs, microsandbox, ... }: {
-    nixosConfigurations.YOUR_HOST = nixpkgs.lib.nixosSystem {
-      system = "x86_64-linux";
-      modules = [
-        { nixpkgs.overlays = [ microsandbox.overlays.default ]; }
-        ./configuration.nix
-      ];
-    };
-  };
-}
-
-# configuration.nix
-{ pkgs, ... }:
-{
-  environment.systemPackages = [ pkgs.microsandbox ];
-}
-```
-
-### NixOS flake (module argument)
+### System (flake)
 
 ```nix
 # flake.nix
 {
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   inputs.microsandbox.url = "github:xuoe/microsandbox-nix";
 
-  outputs = { nixpkgs, microsandbox, ... }: {
-    nixosConfigurations.YOUR_HOST = nixpkgs.lib.nixosSystem {
-      system = "x86_64-linux";
-      specialArgs = {
-        microsandbox = microsandbox.packages.x86_64-linux.msb;
-      };
-      modules = [ ./configuration.nix ];
-    };
-  };
-}
-
-# configuration.nix
-{ microsandbox, ... }:
-{
-  environment.systemPackages = [ microsandbox ];
-}
-```
-
-### Home Manager flake (overlay)
-
-```nix
-# flake.nix
-{
-  inputs.microsandbox.url = "github:xuoe/microsandbox-nix";
-
-  outputs = { nixpkgs, home-manager, microsandbox, ... }:
+  outputs = { nixpkgs, microsandbox, ... }:
     let
       system = "x86_64-linux";
-    in {
-      homeConfigurations.YOUR_USER = home-manager.lib.homeManagerConfiguration {
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [ microsandbox.overlays.default ];
-        };
-        modules = [ ./home.nix ];
+    in
+    {
+      nixosConfigurations.myhost = nixpkgs.lib.nixosSystem {
+        inherit system;
+        modules = [
+          ({ ... }: {
+            environment.systemPackages = [
+              microsandbox.packages.${system}.default
+            ];
+          })
+          # You can also use the overlay instead:
+          # ({ pkgs, ... }: {
+          #    nixpkgs.overlays = [ microsandbox.overlays.default ];
+          #    environment.systemPackages = [ pkgs.microsandbox ];
+          # })
+        ];
       };
     };
 }
-
-# home.nix
-{ pkgs, ... }:
-{
-  home.packages = [ pkgs.microsandbox ];
-}
 ```
 
-### Home Manager flake (module argument)
-
-```nix
-# flake.nix
-{
-  inputs.microsandbox.url = "github:xuoe/microsandbox-nix";
-
-  outputs = { nixpkgs, home-manager, microsandbox, ... }:
-    let
-      system = "x86_64-linux";
-    in {
-      homeConfigurations.YOUR_USER = home-manager.lib.homeManagerConfiguration {
-        pkgs = nixpkgs.legacyPackages.${system};
-        extraSpecialArgs = {
-          microsandbox = microsandbox.packages.${system}.msb;
-        };
-        modules = [ ./home.nix ];
-      };
-    };
-}
-
-# home.nix
-{ microsandbox, ... }:
-{
-  home.packages = [ microsandbox ];
-}
-```
-
-### Classic NixOS (overlay)
-
-To use the overlay in a classic NixOS configuration, pin this repository:
+### System (classic)
 
 ```nix
 let
@@ -162,21 +86,6 @@ in
   nixpkgs.overlays = [ (import "${src}/overlay.nix") ];
   environment.systemPackages = [ pkgs.microsandbox ];
 }
-```
-
-### Classic Nix (checkout)
-
-From a checkout of this repository:
-
-```bash
-# Build msb to ./result/bin/msb
-$ nix-build
-
-# Install msb into your profile
-$ nix-env -f . -i
-
-# Spawn a shell with msb on PATH
-$ nix-shell
 ```
 
 ## Updates
