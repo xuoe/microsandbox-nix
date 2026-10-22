@@ -6,5 +6,5 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 nix flake check -L
-nix build .#msb -L
+nix build -L
 ./result/bin/msb --version

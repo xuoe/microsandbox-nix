@@ -8,29 +8,23 @@
       inherit (nixpkgs) lib;
       checksums = builtins.fromJSON (builtins.readFile ./checksums.json);
       systems = builtins.attrNames checksums;
+      eachSystem = lib.genAttrs systems;
+      pkgsFor = system: nixpkgs.legacyPackages.${system};
       overlay = import ./overlay.nix;
-      forAllSystems = lib.genAttrs systems;
     in
     {
-      packages = forAllSystems (
-        system:
-        let
-          pkgs = nixpkgs.legacyPackages.${system}.extend overlay;
-        in
-        {
-          microsandbox = pkgs.microsandbox;
-          default = pkgs.microsandbox;
-        }
-      );
+      packages = eachSystem (system: {
+        default = import ./default.nix { pkgs = pkgsFor system; };
+      });
       overlays.default = overlay;
-      formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt-tree);
-      checks = forAllSystems (
+      formatter = eachSystem (system: (pkgsFor system).nixfmt-tree);
+      checks = eachSystem (
         system:
         let
-          pkgs = nixpkgs.legacyPackages.${system};
+          pkgs = pkgsFor system;
         in
         {
-          inherit (self.packages.${system}) msb;
+          inherit (self.packages.${system}) default;
           formatting = pkgs.runCommand "formatting-check" { nativeBuildInputs = [ pkgs.nixfmt ]; } ''
             nixfmt --check ${self}/*.nix
             touch $out

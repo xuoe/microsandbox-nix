@@ -25,7 +25,7 @@ eval_expr() {
     "
 }
 
-flake=$(eval_flake ".#packages.${system}.msb.drvPath")
+flake=$(eval_flake ".#packages.${system}.default.drvPath")
 classic=$(eval_expr '(import ./default.nix { inherit pkgs; }).drvPath')
 overlay=$(eval_expr '(pkgs.extend (import ./overlay.nix)).microsandbox.drvPath')
 
