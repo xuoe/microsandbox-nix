@@ -25,17 +25,17 @@ users.users.YOUR_USER.extraGroups = [ "kvm" ];
 ```bash
 # Run msb once (flakes).
 $ nix run github:xuoe/microsandbox-nix -- --version
-msb 0.7.9
+msb 0.7.10
 
 # Open a shell with msb on PATH (flakes).
 $ nix shell github:xuoe/microsandbox-nix
 $ msb --version
-msb 0.7.9
+msb 0.7.10
 
 # Build msb without flakes.
 $ nix-build https://github.com/xuoe/microsandbox-nix/archive/master.tar.gz
 $ ./result/bin/msb --version
-msb 0.7.9
+msb 0.7.10
 ```
 
 ## Install
